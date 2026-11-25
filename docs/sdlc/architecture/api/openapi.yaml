@@ -2,6 +2,526 @@
 openapi: 3.1.0
 info:
   title: note pad 9
-  version: architecture-v0
+  version: architecture-v1
   description: Designed API from the approved architecture (not extracted from code).
-paths: {}
+paths:
+  /account:
+    delete:
+      summary: Permanently delete the account and all associated data after confirmation;
+        revokes sessions.
+      description: Permanently delete the account and all associated data after confirmation;
+        revokes sessions.
+      operationId: delete_account
+      parameters: []
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /auth/login:
+    post:
+      summary: Sign in; returns opaque session token in body. Generic error on failure.
+      description: Sign in; returns opaque session token in body. Generic error on
+        failure.
+      operationId: post_auth_login
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: 200 { token, user_id } or 401 generic error
+  /auth/logout:
+    post:
+      summary: Ends the current session by revoking its token.
+      description: Ends the current session by revoking its token.
+      operationId: post_auth_logout
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: none
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /auth/register:
+    post:
+      summary: Self-register with email and password; rejects duplicate email and
+        invalid fields.
+      description: Self-register with email and password; rejects duplicate email
+        and invalid fields.
+      operationId: post_auth_register
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email, password }'
+      responses:
+        '200':
+          description: 201 { user_id, token } or 409 email in use or 422 field errors
+  /auth/reset/confirm:
+    post:
+      summary: Set a new password using a time-limited single-use reset token; revokes
+        existing sessions.
+      description: Set a new password using a time-limited single-use reset token;
+        revokes existing sessions.
+      operationId: post_auth_reset_confirm
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ token, new_password }'
+      responses:
+        '200':
+          description: 200 { ok } or 400 expired/used link
+  /auth/reset/request:
+    post:
+      summary: Request a password reset; always returns same confirmation regardless
+        of account existence.
+      description: Request a password reset; always returns same confirmation regardless
+        of account existence.
+      operationId: post_auth_reset_request
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ email }'
+      responses:
+        '200':
+          description: 200 { confirmation }
+  /folders:
+    get:
+      summary: List the user's folders.
+      description: List the user's folders.
+      operationId: get_folders
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, name } ]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a folder.
+      description: Create a folder.
+      operationId: post_folders
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ name }'
+      responses:
+        '200':
+          description: 201 { id, name }
+      security:
+      - bearerAuth: []
+  /folders/{id}:
+    delete:
+      summary: Delete a folder; its notes become unfiled.
+      description: Delete a folder; its notes become unfiled.
+      operationId: delete_folders_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /notes:
+    get:
+      summary: List the user's active (non-trashed) notes with title/preview and last-edited
+        timestamp; supports folder_id and tag_id f
+      description: List the user's active (non-trashed) notes with title/preview and
+        last-edited timestamp; supports folder_id and tag_id filters.
+      operationId: get_notes
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, title, preview, last_edited_at } ]
+      security:
+      - bearerAuth: []
+    post:
+      summary: Create a new empty note owned by the user.
+      description: Create a new empty note owned by the user.
+      operationId: post_notes
+      parameters: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ folder_id? }'
+      responses:
+        '200':
+          description: 201 { id, last_edited_at }
+      security:
+      - bearerAuth: []
+  /notes/search:
+    get:
+      summary: Full-text search over the user's active notes by title/content; excludes
+        trashed notes.
+      description: Full-text search over the user's active notes by title/content;
+        excludes trashed notes.
+      operationId: get_notes_search
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, title, preview, last_edited_at } ] or empty
+      security:
+      - bearerAuth: []
+  /notes/{id}:
+    get:
+      summary: Get a single owned note with its rich-text content and tags.
+      description: Get a single owned note with its rich-text content and tags.
+      operationId: get_notes_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: 200 { id, title, content_html, folder_id, tags, last_edited_at
+            } or 404
+      security:
+      - bearerAuth: []
+    patch:
+      summary: Auto-save note changes (title, content, folder); updates last_edited_at
+        and search vector.
+      description: Auto-save note changes (title, content, folder); updates last_edited_at
+        and search vector.
+      operationId: patch_notes_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ title?, content_html?, folder_id? }'
+      responses:
+        '200':
+          description: 200 { id, last_edited_at }
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Permanently delete a trashed note so it cannot be restored or found
+        in search.
+      description: Permanently delete a trashed note so it cannot be restored or found
+        in search.
+      operationId: delete_notes_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /notes/{id}/restore:
+    post:
+      summary: Restore a trashed note to the active list with its previous content
+        and organisation.
+      description: Restore a trashed note to the active list with its previous content
+        and organisation.
+      operationId: post_notes_id_restore
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: none
+      responses:
+        '200':
+          description: 200 { id, is_trashed }
+      security:
+      - bearerAuth: []
+  /notes/{id}/tags:
+    post:
+      summary: Add one or more tags to a note (creating tags as needed).
+      description: Add one or more tags to a note (creating tags as needed).
+      operationId: post_notes_id_tags
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: '{ tags: [name] }'
+      responses:
+        '200':
+          description: 200 { tags }
+      security:
+      - bearerAuth: []
+  /notes/{id}/tags/{tag_id}:
+    delete:
+      summary: Remove a tag from a note.
+      description: Remove a tag from a note.
+      operationId: delete_notes_id_tags_tag_id
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tag_id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+  /notes/{id}/trash:
+    post:
+      summary: Move the note to trash so it leaves the active list.
+      description: Move the note to trash so it leaves the active list.
+      operationId: post_notes_id_trash
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              description: none
+      responses:
+        '200':
+          description: 200 { id, is_trashed }
+      security:
+      - bearerAuth: []
+  /tags:
+    get:
+      summary: List the user's tags.
+      description: List the user's tags.
+      operationId: get_tags
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, name } ]
+      security:
+      - bearerAuth: []
+  /trash:
+    get:
+      summary: List the user's trashed notes with last-edited timestamps.
+      description: List the user's trashed notes with last-edited timestamps.
+      operationId: get_trash
+      parameters: []
+      responses:
+        '200':
+          description: 200 [ { id, title, last_edited_at } ]
+      security:
+      - bearerAuth: []
+    delete:
+      summary: Empty the trash, permanently removing all trashed notes after confirmation.
+      description: Empty the trash, permanently removing all trashed notes after confirmation.
+      operationId: delete_trash
+      parameters: []
+      responses:
+        '200':
+          description: '204'
+      security:
+      - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    users:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        password_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - email
+      - password_hash
+      - created_at
+    sessions:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        token_hash:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        last_used_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - token_hash
+      - created_at
+      - last_used_at
+      - expires_at
+    password_reset_tokens:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        token_hash:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        used_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - token_hash
+      - expires_at
+      - created_at
+    folders:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - name
+      - created_at
+    notes:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        folder_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        content_html:
+          type: string
+        content_text:
+          type: string
+        search_vector:
+          type: string
+        is_trashed:
+          type: boolean
+        trashed_at:
+          type: string
+          format: date-time
+        last_edited_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - id
+      - user_id
+      - is_trashed
+      - last_edited_at
+      - created_at
+    tags:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - user_id
+      - name
+    note_tags:
+      type: object
+      properties:
+        note_id:
+          type: string
+          format: uuid
+        tag_id:
+          type: string
+          format: uuid
+      required:
+      - note_id
+      - tag_id
