@@ -5,7 +5,7 @@
 <!-- sdlc:auto:start overview -->
 build a note pad
 
-**Documentation version:** v3
+**Documentation version:** v1
 <!-- sdlc:auto:end overview -->
 
 ## Contents
@@ -14,8 +14,8 @@ build a note pad
 | Document | State |
 |---|---|
 | [Requirements](requirements/README.md) | v1 approved |
-| [Architecture](architecture/README.md) | 19 entries |
-| [Planning](planning/README.md) | 10 entries |
+| [Architecture](architecture/README.md) | 14 entries |
+| [Planning](planning/README.md) | 11 entries |
 | [Development](development/README.md) | 0 entries |
 | [Testing](testing/README.md) | 0 entries |
 | [Deployment](deployment/README.md) | 0 entries |
@@ -32,5 +32,5 @@ build a note pad
 | [Runbook](deployment/runbook.md) | not deployed yet |
 | [Release notes](deployment/release-notes.md) | 0 releases |
 | [Traceability matrix](traceability-matrix.md) | 17 requirements |
-| [Changelog](CHANGELOG.md) | 3 versions |
+| [Changelog](CHANGELOG.md) | 1 version |
 <!-- sdlc:auto:end contents -->

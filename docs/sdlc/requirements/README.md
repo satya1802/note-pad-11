@@ -5,118 +5,118 @@
 <!-- sdlc:auto:start narrative -->
 ## Summary
 
-### REQ-TECH-STACK · approved · source: requirements:technology-stack
+### REQ-TECH-STACK · approved · source: requirements:tech-stack
 
-Approved technology stack for the notepad app, fixed by the product owner and not to be substituted.
+Approved technology stack for the notepad app: FastAPI backend, AWS cloud, PostgreSQL database, React frontend.
 
-- Backend: FastAPI 0.115 -- handles auth, password reset, account deletion, notes CRUD, trash and search; chosen as the platform default, cheap and easy to maintain for a no-revenue product.
-- Cloud: AWS -- platform default; managed PostgreSQL (RDS), container hosting, TLS/secrets handling; supports thousands of users reliably and cheaply, with standard data-protection and backup tooling and self-service account/data deletion.
-- Database: PostgreSQL 16 -- stores users, notes, folders, tags, trash state and timestamps; built-in full-text search satisfies the 'find notes by text' requirement without a separate search engine; fits a single-tenant, privacy-focused design.
-- Frontend: React 19 -- responsive web app with a rich-text editor (bold, lists, headings), auto-save, folders/tags, instant search; largest ecosystem of ready-made rich-text editors (e.g. TipTap/Lexical); one codebase for desktop and mobile browsers, matching the 'no native app' decision.
+- Backend: FastAPI 0.115 — handles auth, notes CRUD, search; small codebase keeps a free, no-revenue product cheap to run.
+- Cloud: AWS — managed RDS PostgreSQL, container hosting, TLS/secrets handling for thousands of users, scaling only if needed.
+- Database: PostgreSQL 16 — single relational store for users/notes/folders/tags/trash; built-in full-text search avoids a separate search engine; single-tenant, privacy-focused fit.
+- Frontend: React 19 — responsive SPA with rich-text editor (bold, lists, headings), auto-save, folders/tags, instant search; largest ecosystem of ready-made rich-text editors; one codebase for desktop and mobile browsers (no native app).
 
 ### REQ-SERVICES · approved · source: requirements:services
 
-One external runtime service is approved: an SMTP email service used for account-related email (e.g. password reset links).
+One external runtime service is approved: an SMTP email provider for transactional email.
 
 - Email: SMTP server (SaaS), configured via env vars SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD.
-- Required API keys/secrets: SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER -- values must be set as environment secrets, e.g. SMTP_HOST=<smtp-host>, SMTP_PORT=<smtp-port>, SMTP_USER=<smtp-username>, SMTP_PASSWORD=<smtp-password>.
+- API keys/secrets needed: SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER (values are not provided here; treat as placeholders, e.g. <smtp-host>, <smtp-password>, <smtp-port>, <smtp-user>, to be set at deployment).
 
 ### REQ-SCOPE · approved · source: requirements:scope
 
-Delivery scope is lightweight (requirements v1). Defines what is explicitly in and out of scope for this build.
+Delivery scope is lightweight: self-registration, private rich-text notes, folders/tags, search, trash, and self-service account deletion, free of charge on responsive web only.
 
-In scope: self-registration and email/password sign-in; private account showing only the user's own notes; rich-text note creation/editing (bold, lists, headings); auto-save with last-edited timestamp; note list dashboard; delete to trash before permanent removal; organising notes with folders and tags; full-text search across notes; self-service account and data deletion; sessions persisting across devices; responsive web app for desktop and mobile browsers (no native app); free to use with no payments or subscription tiers.
-Out of scope -- not to be designed or built: file and image attachments on notes; sharing notes via link or inviting others to view/edit.
+In scope: self-registration and email/password sign-in; private account showing only the user's own notes; rich-text note creation/editing (bold, lists, headings); auto-save with last-edited timestamp; note list dashboard; delete to trash before permanent removal; folders and tags organisation; full-text search; self-service account and data deletion; sessions persisting across devices; responsive web app for desktop and mobile (no native app); free to use with no payments or subscription tiers.
+Out of scope — explicitly not designed or built: file and image attachments on notes; sharing notes via link or inviting others to view/edit.
 
-### REQ-FG-SIGNIN · approved · source: requirements:feature-group:Sign-in & accounts
+### REQ-FEAT-SIGNIN · approved · source: requirements:feature:Sign-in & accounts
 
-Covers self-registration, sign-in, persistent sessions/sign-out, password reset, and self-service account deletion.
+Account lifecycle: registration, sign-in, persistent sessions/sign-out, password reset, and self-service account/data deletion.
 
-- Self-register with email and password: valid email + password meeting stated rules creates a private account; duplicate email is rejected with 'email already in use'; invalid email/password shows which field to correct.
-- Sign in with email and password: correct credentials sign the user in to their note list dashboard; incorrect email or password is refused with a generic error.
-- Stay signed in and sign out: sessions persist per device without re-entering a password; sign-out ends that device's session; sessions also end after a period of inactivity.
-- Reset a forgotten password: user requests reset, receives a time-limited email link; setting a new password updates it (hashed) and ends existing sessions.
-- Delete account and data: signed-in user can permanently delete account and all data (notes, trash, folders, tags, sessions) from account settings after confirming; old credentials stop working.
+- Self-register with email and password; duplicate email rejected with 'email in use' message; invalid email/password flags the offending field.
+- Sign in with email and password, taken to note list dashboard; incorrect email or password gives a generic error.
+- Signed-in session persists per device without re-entering password; sign-out ends that device's session; session also ends after a period of inactivity.
+- Request password reset: time-limited email link to set new password; setting a new password updates it and ends existing sessions.
+- Delete account and data from account settings after confirmation: all notes, trash, folders, tags and sessions removed; old credentials stop working.
 
-### REQ-FG-WRITING · approved · source: requirements:feature-group:Writing notes
+### REQ-FEAT-WRITING · approved · source: requirements:feature:Writing notes
 
-Covers creating notes, rich-text formatting, and auto-save with last-edited timestamps.
+Creating and editing rich-text notes with automatic saving and last-edited tracking.
 
-- Create a new note: signed-in user creates a new empty note, ready for editing, belonging only to their account; once content is entered it appears in the note list with a last-edited timestamp.
-- Format note text as rich text: bold, lists and headings can be applied while editing; formatting is shown in the editor and preserved on reopen; plain unformatted text is saved and displayed as entered.
-- Auto-save with last-edited time: changes save automatically on pause/stop typing with no explicit save action; last-edited timestamp reflects the most recent save; reopening a note (including on another device) shows the latest saved content.
+- Create a new, empty note ready for editing, owned only by the creator; once content is entered it appears in the note list with a last-edited timestamp.
+- Format text as bold, lists and headings; formatting shown in editor and preserved on reopen; plain unformatted text saved/displayed as entered.
+- Changes auto-save when the user pauses or stops typing, with no explicit save action; last-edited timestamp reflects the most recent save; reopening the note (including on another device) shows the latest saved content.
 
-### REQ-FG-ORGANIZE · approved · source: requirements:feature-group:Organising & searching
+### REQ-FEAT-ORGANIZE · approved · source: requirements:feature:Organising & searching
 
-Covers the note list dashboard, folder and tag organisation, and full-text search.
+Dashboard listing, folder and tag organisation, and full-text search across a user's own notes.
 
-- View note list dashboard: signed-in user sees only their own notes, each showing a title/preview and last-edited timestamp; an empty state prompts note creation when there are no notes.
-- Organise notes with folders: user creates folders, moves notes into them, views a folder's notes by selecting it; a note can be moved or removed from a folder with membership updating accordingly.
-- Organise notes with tags: user can add one or more tags to a note while editing or viewing; tags are saved and shown with the note; filtering/selecting by tag shows only that user's notes with that tag.
-- Full-text search across notes: user enters a search term to find notes whose title or content matches; a clear no-results state is shown when nothing matches; trashed notes are excluded from active search results.
+- Dashboard lists only the signed-in user's notes, each with title/preview and last-edited timestamp; empty state prompts creating the first note when there are none.
+- Create folders and move notes into them; view a folder's notes by selecting it; move or remove a note from a folder updates its membership.
+- Add one or more tags to a note while editing or viewing; tags saved and shown with the note; filtering/selecting by a tag shows only that user's notes with that tag.
+- Full-text search by title/content term; clear no-results state when nothing matches; trashed notes excluded from active search results.
 
-### REQ-FG-TRASH · approved · source: requirements:feature-group:Trash
+### REQ-FEAT-TRASH · approved · source: requirements:feature:Trash
 
-Covers moving notes to trash, restoring them, and permanent deletion.
+Trash lifecycle: move to trash, restore, and permanent deletion.
 
-- Move a note to trash: user deletes a note into a trash area; it no longer appears in the active note list and is listed in trash with its last-edited timestamp.
-- Restore a note from trash: user can restore a note from trash, returning it to the active list with its previous content and organisation.
-- Permanently delete from trash: user can permanently remove a note from trash or empty the trash after confirming; permanently deleted notes cannot be restored or found in search.
+- Delete a note into trash so it no longer appears in the active list; it is listed in trash with its last-edited timestamp.
+- Restore a trashed note back to the active list with its previous content and organisation.
+- Permanently delete a note from trash, or empty the trash, after confirming; permanently deleted notes cannot be restored or found in search.
 
-### REQ-FG-ACCESS · approved · source: requirements:feature-group:App access
+### REQ-FEAT-ACCESS · approved · source: requirements:feature:App access
 
-Covers responsive, free, cross-device web access with no native app and no payment model.
+The app is delivered as a free, responsive web app for desktop and mobile browsers, with no native app and no payment ever required.
 
-- Free responsive web access: the app works on desktop and mobile browsers with a layout that adapts to screen size, keeping all note features usable; no native app is provided.
-- Every feature is available free of charge, with no payment, billing or subscription tier ever required or presented.
+- Works on desktop and mobile browsers with a layout that adapts to screen size, keeping all note features usable; no native app.
+- Every feature is free of charge; no payment, billing or subscription tier is ever required or presented.
 
 ### REQ-NFR-001 · approved · source: requirements:NFR-001
 
-[privacy] Notes are visible only to their owner.
+Privacy: notes visible only to their owner.
 
-A user can only ever see, open, search and organise their own notes, folders and tags. Another user's notes must never be shown under any circumstances.
+Every account is private — a user can only ever see, open, search and organise their own notes, folders and tags; another user's notes are never shown under any circumstances.
 
 ### REQ-NFR-002 · approved · source: requirements:NFR-002
 
-[security] Passwords are stored only in hashed form.
+Security: passwords stored only in hashed form.
 
-Passwords are hashed both at account creation and when changed via password reset; plain-text passwords are never kept or shown.
+User passwords are stored only in hashed form at account creation and at password change via reset; never kept or shown in plain text.
 
 ### REQ-NFR-003 · approved · source: requirements:NFR-003
 
-[security] Sessions expire and can be explicitly ended.
+Security: sessions expire and can be ended.
 
-A session persists across a user's devices but ends after a period of inactivity, on sign-out on that device, when the password is reset, and when the account is deleted -- after which the user must sign in again.
+A signed-in session persists across a user's devices but ends after a period of inactivity, on sign-out on that device, on password reset, and on account deletion; the user must sign in again afterward.
 
 ### REQ-NFR-004 · approved · source: requirements:NFR-004
 
-[security] Password reset links are time-limited and single-use.
+Security: password reset links are time-limited and single-use.
 
-An expired or already-used reset link is refused, prompting the user to request a new one.
+A password reset link is time-limited and usable only once; an expired or already-used link is refused and the user is prompted to request a new one.
 
 ### REQ-NFR-005 · approved · source: requirements:NFR-005
 
-[privacy] The system never reveals whether a given email has an account.
+Privacy: the app never reveals whether an email address has an account.
 
-Sign-in shows a generic error; password reset shows the same confirmation regardless of whether the account exists; registration reports only 'email already in use' without exposing other account details.
+Sign-in shows a generic error; password reset returns the same confirmation whether or not the account exists; registration reports only that the email is already in use, without exposing other account details.
 
 ### REQ-NFR-006 · approved · source: requirements:NFR-006
 
-[compliance] Self-service permanent deletion of all user data in one action, in line with standard data-protection expectations.
+Compliance: self-service permanent deletion of all user data in one action.
 
-A user can permanently delete their own account and all associated data (notes including trash, folders, tags) and end their sessions in one self-service action, with no way to recover the data afterwards. Note: this traces to the general 'standard data-protection expectations' stated in requirements; no specific named regulation was provided in the input.
+A user can permanently delete their own account and all associated data (notes including trash, folders, tags) and end their sessions in one self-service action, with no way to recover the data afterwards, in line with standard data-protection expectations.
 
 ### REQ-NFR-007 · approved · source: requirements:NFR-007
 
-[compatibility] Fully usable responsive web app on desktop and mobile browsers.
+Compatibility: fully usable responsive web app on desktop and mobile browsers.
 
-All note features are accessible at both desktop and mobile browser screen sizes; no native app is required.
+The product is a responsive web app fully usable on desktop and mobile browser screen sizes, with all note features accessible and no native app required.
 
 ### REQ-NFR-008 · approved · source: requirements:NFR-008
 
-[scalability] Must reliably support thousands of individual consumer users.
+Scalability: supports thousands of individual users reliably.
 
-Target scale is thousands of individual accounts, each seeing only their own notes, rather than millions.
+The product is expected to run reliably at a modest scale of thousands of individual consumer accounts, each seeing only their own notes, rather than millions.
 <!-- sdlc:auto:end narrative -->
 
 <!-- sdlc:auto:start summary -->

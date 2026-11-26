@@ -5,157 +5,145 @@
 <!-- sdlc:auto:start narrative -->
 ## Overview
 
-### ARCH-COMP-WEB · approved · source: architecture:web_frontend
+### ARCH-OVERVIEW · approved · source: architecture:summary
 
-React 19 single-page application providing the entire end-user browser experience: registration/sign-in, note dashboard, rich-text editor with auto-save, folders/tags, search, trash and account settings.
+Lightweight, privacy-focused notepad: React 19 SPA over HTTPS to a FastAPI backend, backed by a single PostgreSQL 16 database on AWS.
 
-Component: React Web SPA (React 19). Responsibilities: registration/sign-in UI, note list dashboard, rich-text editor with auto-save, folders/tags organisation, search UI, trash area, and account settings. Stores the opaque session token issued by the backend and sends it as 'Authorization: Bearer <token>' on every API call. Reads API base URL from VITE_API_BASE_URL. Served as static assets from its own origin.
+Users self-register and sign in with email/password; sessions are server-side opaque Bearer tokens persisting per device, revocable on sign-out, password reset or account deletion. Notes are rich text (bold, lists, headings) that auto-save with a last-edited timestamp, organised with folders and tags, and found via PostgreSQL's built-in full-text search. Deleted notes go to trash before permanent removal; users can permanently delete their whole account and data. Transactional email (password reset) goes through an approved SMTP service. Each user only ever sees their own rows, enforced in every query.
 
-**Related:** ARCH-COMP-API
+**Related:** REQ-TECH-STACK, REQ-SCOPE
 
-### ARCH-COMP-API · approved · source: architecture:api_backend
+### ARCH-COMP-web-frontend · approved · source: architecture:component:web_frontend
 
-FastAPI 0.115 backend exposing the REST API for auth/sessions, note CRUD with auto-save, folders/tags, full-text search, trash lifecycle, password reset, and self-service account deletion.
+React 19 Web SPA is the sole client, serving desktop and mobile browsers from one codebase.
 
-Component: FastAPI Backend (FastAPI 0.115). Responsibilities: auth and session management, note CRUD with auto-save, folders/tags, full-text search, trash lifecycle, password reset, self-service account deletion. Enforces per-user data isolation on every query and hashes passwords before storage. Runs on Python 3.12 / Uvicorn.
+Responsive browser UI: registration/sign-in, note list dashboard, rich-text editor with auto-save, folders/tags, search, trash and account settings. Stores the opaque session token and sends it as Authorization: Bearer on every API call.
 
-**Related:** ARCH-COMP-WEB, ARCH-COMP-DB, ARCH-COMP-EMAIL
+**Related:** REQ-FEAT-WRITING, REQ-FEAT-ORGANIZE, REQ-FEAT-SIGNIN
 
-### ARCH-COMP-DB · approved · source: architecture:database
+### ARCH-COMP-api-backend · approved · source: architecture:component:api_backend
 
-Single PostgreSQL 16 database as the durable store for all structured data, also providing built-in full-text search so no separate search engine is needed.
+FastAPI backend is the single REST API serving auth, notes, folders/tags, search and trash.
 
-Component: PostgreSQL Database (PostgreSQL 16). Stores users, sessions, notes (rich-text content), folders, tags, note-tag links, and trash state. Provides full-text search via tsvector/GIN indexes, eliminating the need for a separate search engine.
+Handles auth and sessions, note CRUD with auto-save, folders/tags, full-text search, trash lifecycle, password reset and self-service account deletion. Enforces per-user data isolation on every query and hashes passwords.
 
-**Related:** ARCH-COMP-API, ARCH-DATA-MODEL
+**Related:** REQ-FEAT-SIGNIN, REQ-FEAT-TRASH, REQ-NFR-001, REQ-NFR-002
 
-### ARCH-COMP-EMAIL · approved · source: architecture:email_service
+### ARCH-COMP-database · approved · source: architecture:component:database
 
-External SMTP SaaS used to send transactional password-reset emails containing a time-limited, single-use link.
+PostgreSQL 16 is the single durable store, including built-in full-text search.
 
-Component: SMTP Email Service (external SMTP SaaS). Sole responsibility: send transactional password-reset emails with a time-limited, single-use link. Managed/external, invoked by the API backend only during the password-reset flow.
+Durable store for users, sessions, notes (rich-text content), folders, tags, note-tag links and trash state. Provides full-text search via tsvector/GIN indexes so no separate search engine is needed.
 
-**Related:** ARCH-COMP-API, ARCH-CRIT-RESET
+**Related:** REQ-FEAT-ORGANIZE
 
-### ARCH-CRIT-SIGNIN · approved · source: architecture:critical_path:sign-in
+### ARCH-COMP-email-service · approved · source: architecture:component:email_service
 
-Describes how a user signs in and how the resulting session token is issued and used thereafter.
+External SMTP SaaS sends transactional password-reset emails.
 
-User submits email/password; backend verifies the password hash and issues an opaque session token persisted server-side (sessions table). On failure, a generic error is returned so email existence is not revealed. The token persists per device and is sent as a Bearer header on every subsequent API call. Endpoints involved: POST /auth/login, POST /auth/logout.
+Sends transactional password-reset emails with a time-limited, single-use link.
 
-**Related:** ARCH-COMP-API, ARCH-COMP-DB
+**Related:** REQ-SERVICES, REQ-NFR-004
 
-### ARCH-CRIT-AUTOSAVE · approved · source: architecture:critical_path:auto-save
+### ARCH-PATH-signin · approved · source: architecture:critical_path:Sign-in and session issuance
 
-Describes the debounce-and-PATCH mechanism used to auto-save note edits with an updated last-edited timestamp and search index.
+Sign-in verifies a password hash and issues an opaque, server-persisted session token.
 
-As the user pauses typing, the SPA debounces changes and PATCHes the note content to the backend. The backend updates content, refreshes last_edited_at, and recomputes the full-text search vector, all scoped to the owning user. Endpoint: PATCH /notes/{id}.
+User submits email/password; backend verifies the hash and issues an opaque session token persisted server-side. Generic error on failure so email existence is not revealed. Token persists per device and is used on every subsequent call.
 
-**Related:** ARCH-COMP-WEB, ARCH-COMP-API, ARCH-COMP-DB
+**Related:** REQ-FEAT-SIGNIN, REQ-NFR-005
 
-### ARCH-CRIT-SEARCH · approved · source: architecture:critical_path:full-text-search
+### ARCH-PATH-autosave · approved · source: architecture:critical_path:Auto-save a note with last-edited timestamp
 
-Describes how full-text search is executed over a user's active notes, excluding trashed notes.
+Debounced PATCH calls auto-save note content and refresh the last-edited timestamp and search index.
 
-User enters a search term; backend runs a PostgreSQL full-text query (tsvector/GIN) over the user's non-trashed notes, returning matches or a no-results state. Trashed notes are explicitly excluded from results. Endpoint: GET /notes/search.
+As the user pauses typing, the SPA debounces and PATCHes the note content; backend updates content, refreshes last_edited_at and the full-text search vector, scoped to the owner.
 
-**Related:** ARCH-COMP-DB, ARCH-COMP-API
+**Related:** REQ-FEAT-WRITING
 
-### ARCH-CRIT-RESET · approved · source: architecture:critical_path:password-reset
+### ARCH-PATH-search · approved · source: architecture:critical_path:Full-text search of active notes
 
-Describes the password-reset flow, including its account-existence-safe confirmation message and session revocation on completion.
+Search runs a PostgreSQL tsvector/GIN full-text query scoped to the user's non-trashed notes.
 
-User requests a reset; backend always returns the same confirmation message regardless of whether the account exists. Only for an existing account does the backend create a time-limited, single-use reset token and send the link via SMTP. Setting a new password updates the password hash and revokes all existing sessions. Endpoints: POST /auth/reset/request, POST /auth/reset/confirm.
+User enters a term; backend runs a PostgreSQL full-text query over the user's non-trashed notes using tsvector/GIN, returning matches or a no-results state. Trashed notes are excluded.
 
-**Related:** ARCH-COMP-API, ARCH-COMP-EMAIL, ARCH-COMP-DB
+**Related:** REQ-FEAT-ORGANIZE
 
-### ARCH-CRIT-DELETE · approved · source: architecture:critical_path:account-deletion
+### ARCH-PATH-reset · approved · source: architecture:critical_path:Password reset via email
 
-Describes the self-service account deletion flow and its cascading, transactional removal of all user data.
+Password reset always returns the same confirmation; only existing accounts get a time-limited single-use token emailed via SMTP.
 
-A signed-in user confirms deletion; the backend permanently removes the user and cascades deletion of all notes (including trashed ones), folders, tags, note-tag links, and sessions within a single transaction. Endpoint: DELETE /account.
+User requests a reset; backend always returns the same confirmation, and only for an existing account creates a time-limited single-use token and sends the link via SMTP. Setting a new password updates the hash and revokes all sessions.
 
-**Related:** ARCH-COMP-API, ARCH-COMP-DB
+**Related:** REQ-FEAT-SIGNIN, REQ-NFR-004, REQ-NFR-005
 
-### ARCH-DATA-MODEL · approved · source: architecture:entities
+### ARCH-PATH-deletion · approved · source: architecture:critical_path:Self-service account and data deletion
 
-Relational data model covering users, sessions, password reset tokens, folders, notes, tags, and note-tag links, all scoped by user ownership.
+Account deletion cascades all user data removal in one transaction.
 
-Entities and key fields: users(id, email, password_hash, created_at); sessions(id, user_id, token_hash, created_at, last_used_at, expires_at); password_reset_tokens(id, user_id, token_hash, expires_at, used_at, created_at); folders(id, user_id, name, created_at); notes(id, user_id, folder_id, title, content_html, content_text, search_vector, is_trashed, trashed_at, last_edited_at, created_at); tags(id, user_id, name); note_tags(note_id, tag_id). notes.search_vector backs PostgreSQL full-text search via tsvector/GIN indexing.
+Signed-in user confirms deletion; backend permanently removes the user and cascades all notes (including trash), folders, tags, note-tag links and sessions in one transaction.
 
-**Related:** ARCH-COMP-DB
+**Related:** REQ-FEAT-SIGNIN, REQ-NFR-006
 
-### ARCH-API-AUTH · approved · source: architecture:endpoints:auth
+### ARCH-ENTITIES · approved · source: architecture:entities
 
-Authentication, session, and account-deletion endpoints.
+Data model: users, sessions, password reset tokens, folders, notes, tags, and note-tag links.
 
-POST /auth/register - self-register with email and password; rejects duplicate email and invalid fields. POST /auth/login - sign in; returns opaque session token in body, generic error on failure. POST /auth/logout - ends current session by revoking its token. POST /auth/reset/request - request a password reset; always returns same confirmation regardless of account existence. POST /auth/reset/confirm - set a new password using a time-limited single-use reset token; revokes existing sessions. DELETE /account - permanently delete the account and all associated data after confirmation; revokes sessions.
+- users: id, email, password_hash, created_at
+- sessions: id, user_id, token_hash, created_at, last_used_at, expires_at
+- password_reset_tokens: id, user_id, token_hash, expires_at, used_at, created_at
+- folders: id, user_id, name, created_at
+- notes: id, user_id, folder_id, title, content_html, content_text, search_vector, is_trashed, trashed_at, last_edited_at, created_at
+- tags: id, user_id, name
+- note_tags: note_id, tag_id
 
-**Related:** ARCH-CRIT-SIGNIN, ARCH-CRIT-RESET
+### ARCH-ENDPOINTS · approved · source: architecture:endpoints
 
-### ARCH-API-NOTES · approved · source: architecture:endpoints:notes
+Full REST API surface for auth/sessions, notes, folders, tags, trash and search.
 
-Endpoints for listing, creating, reading, updating, and searching notes.
-
-GET /notes - list the user's active (non-trashed) notes with title/preview and last-edited timestamp; supports folder_id and tag_id filters. POST /notes - create a new empty note owned by the user. GET /notes/{id} - get a single owned note with its rich-text content and tags. PATCH /notes/{id} - auto-save note changes (title, content, folder); updates last_edited_at and search vector. GET /notes/search - full-text search over the user's active notes by title/content; excludes trashed notes.
-
-**Related:** ARCH-CRIT-AUTOSAVE, ARCH-CRIT-SEARCH, ARCH-DATA-MODEL
-
-### ARCH-API-TRASH · approved · source: architecture:endpoints:trash
-
-Endpoints for moving notes to trash, restoring them, and permanently deleting trashed notes individually or all at once.
-
-POST /notes/{id}/trash - move the note to trash so it leaves the active list. POST /notes/{id}/restore - restore a trashed note to the active list with its previous content and organisation. DELETE /notes/{id} - permanently delete a trashed note so it cannot be restored or found in search. GET /trash - list the user's trashed notes with last-edited timestamps. DELETE /trash - empty the trash, permanently removing all trashed notes after confirmation.
-
-**Related:** ARCH-CRIT-SEARCH, ARCH-DATA-MODEL
-
-### ARCH-API-FOLDERS-TAGS · approved · source: architecture:endpoints:folders-tags
-
-Endpoints for managing folders and tags, and for attaching/removing tags on notes.
-
-GET /folders - list the user's folders. POST /folders - create a folder. DELETE /folders/{id} - delete a folder; its notes become unfiled. GET /tags - list the user's tags. POST /notes/{id}/tags - add one or more tags to a note (creating tags as needed). DELETE /notes/{id}/tags/{tag_id} - remove a tag from a note.
-
-**Related:** ARCH-DATA-MODEL
-
-### ARCH-DEPLOY · approved · source: architecture:deployment_nodes
-
-AWS-based deployment topology: static SPA hosting, containerised API behind a load balancer, managed PostgreSQL, external SMTP, and managed secrets storage.
-
-Nodes: SPA Static Hosting - React build on S3 + CloudFront (SPA origin, static assets). API Service - FastAPI container on AWS ECS Fargate behind an Application Load Balancer (API origin, Python 3.12 / Uvicorn). PostgreSQL - Amazon RDS for PostgreSQL 16. SMTP Email - external SMTP SaaS (managed). Secrets - AWS Secrets Manager / SSM Parameter Store (managed), used for credentials.
-
-**Related:** ARCH-COMP-WEB, ARCH-COMP-API, ARCH-COMP-DB, ARCH-COMP-EMAIL
-
-### ARCH-TECH-FRONTEND · approved · source: architecture:technology_decisions:frontend
-
-React 19 chosen as the approved frontend stack over Vue and Svelte.
-
-Decision: React 19 (alternatives considered: Vue, Svelte). Drives the responsive SPA with rich-text editor, auto-save, folders/tags, search, and trash. Served from its own origin; reads VITE_API_BASE_URL for the API URL; sends the opaque session token as a Bearer header.
-
-**Related:** ARCH-COMP-WEB
-
-### ARCH-TECH-BACKEND · approved · source: architecture:technology_decisions:backend
-
-FastAPI 0.115 chosen as the approved backend stack over Django and Flask.
-
-Decision: FastAPI 0.115 (alternatives considered: Django, Flask). Handles auth/sessions, note CRUD with auto-save, full-text search, trash lifecycle, password reset, and account deletion for thousands of users, enforcing per-user isolation in every query.
-
-**Related:** ARCH-COMP-API
-
-### ARCH-TECH-DB · approved · source: architecture:technology_decisions:database
-
-PostgreSQL 16 chosen as the approved database over MySQL and SQLite, for both structured storage and built-in full-text search.
-
-Decision: PostgreSQL 16 (alternatives considered: MySQL, SQLite). Stores all structured, relational data (users, sessions, notes, folders, tags, trash state) and provides built-in full-text search via tsvector/GIN, avoiding the need for a separate search engine.
-
-**Related:** ARCH-COMP-DB, ARCH-DATA-MODEL
-
-### ARCH-TECH-CLOUD · approved · source: architecture:technology_decisions:cloud
-
-AWS chosen as the approved cloud platform over GCP and Azure, for managed Postgres, container hosting, static hosting, and secrets management.
-
-Decision: AWS (alternatives considered: GCP, Azure). Provides managed RDS PostgreSQL with backups, Fargate container hosting for the API, S3/CloudFront for the SPA, and Secrets Manager/TLS for credentials -- judged sufficient to run reliably and cheaply at modest scale.
-
-**Related:** ARCH-DEPLOY
+- POST /auth/register — self-register, rejects duplicate email/invalid fields.
+- POST /auth/login — sign in, returns opaque session token; generic error on failure.
+- POST /auth/logout — revokes current session token.
+- POST /auth/reset/request — same confirmation regardless of account existence.
+- POST /auth/reset/confirm — sets new password via time-limited single-use token; revokes existing sessions.
+- DELETE /account — permanently deletes account and all data after confirmation; revokes sessions.
+- GET /notes — lists active notes with title/preview/last-edited; supports folder_id and tag_id filters.
+- POST /notes — creates a new empty note.
+- GET /notes/{id} — gets a single owned note with content and tags.
+- PATCH /notes/{id} — auto-saves changes (title, content, folder); updates last_edited_at and search vector.
+- POST /notes/{id}/trash — moves note to trash.
+- POST /notes/{id}/restore — restores a trashed note.
+- DELETE /notes/{id} — permanently deletes a trashed note.
+- GET /trash — lists trashed notes.
+- DELETE /trash — empties trash after confirmation.
+- GET /notes/search — full-text search over active notes; excludes trashed.
+- GET /folders — lists folders.
+- POST /folders — creates a folder.
+- DELETE /folders/{id} — deletes a folder; its notes become unfiled.
+- GET /tags — lists tags.
+- POST /notes/{id}/tags — adds tags to a note (creating as needed).
+- DELETE /notes/{id}/tags/{tag_id} — removes a tag from a note.
+
+### ARCH-DEPLOY-NODES · approved · source: architecture:deployment_nodes
+
+AWS deployment topology: static SPA hosting, containerized API, managed Postgres, external SMTP, and managed secrets.
+
+- SPA Static Hosting: React build on S3 + CloudFront (SPA origin), static assets.
+- API Service: FastAPI container on AWS ECS Fargate behind an Application Load Balancer (API origin), Python 3.12 / Uvicorn.
+- PostgreSQL: Amazon RDS for PostgreSQL 16.
+- SMTP Email: external SMTP SaaS, managed.
+- Secrets: AWS Secrets Manager / SSM Parameter Store, managed.
+
+### ARCH-TECH-DECISIONS · approved · source: architecture:technology_decisions
+
+Architecture-level rationale for each approved stack choice and considered alternatives.
+
+- Frontend: React 19 (alternatives considered: Vue, Svelte) — drives the responsive SPA (editor, auto-save, folders/tags, search, trash); reads VITE_API_BASE_URL, sends opaque session token as Bearer header.
+- Backend: FastAPI 0.115 (alternatives: Django, Flask) — handles auth/sessions, note CRUD, search, trash, reset, deletion for thousands of users; enforces per-user isolation in every query.
+- Database: PostgreSQL 16 (alternatives: MySQL, SQLite) — stores all structured/relational data; built-in full-text search via tsvector/GIN avoids a separate search engine.
+- Cloud: AWS (alternatives: GCP, Azure) — managed RDS with backups, Fargate hosting, S3/CloudFront, Secrets Manager/TLS — reliable and cheap at modest scale.
+
+**Related:** REQ-TECH-STACK
 <!-- sdlc:auto:end narrative -->
 
 <!-- sdlc:auto:start building-blocks -->
